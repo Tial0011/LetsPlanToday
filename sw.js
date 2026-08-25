@@ -13,7 +13,7 @@
 //   - Navigation requests fall back to the cached index.html shell if the
 //     network is unavailable, so opening the app offline still works.
 
-const CACHE_VERSION = "v6";
+const CACHE_VERSION = "v7";
 const SHELL_CACHE = `plan-today-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `plan-today-runtime-${CACHE_VERSION}`;
 
