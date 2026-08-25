@@ -45,7 +45,7 @@ try {
   console.warn("Push messaging unavailable in this service worker context:", err && err.message);
 }
 
-const CACHE_VERSION = "v9";
+const CACHE_VERSION = "v10";
 const SHELL_CACHE = `plan-today-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `plan-today-runtime-${CACHE_VERSION}`;
 
