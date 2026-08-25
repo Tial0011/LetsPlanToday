@@ -1,0 +1,58 @@
+/* ============ MOBILE BOTTOM NAV (default) ============ */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0; height: 64px;
+  background: var(--surface); border-top: 1px solid var(--border);
+  display: flex; z-index: 50;
+}
+.bottom-nav button {
+  flex: 1; background: none; border: none; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2px; color: var(--text-secondary);
+  font-size: 0.7rem; cursor: pointer; transition: color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-spring);
+}
+.bottom-nav button .nav-icon { display: flex; align-items: center; justify-content: center; }
+.bottom-nav button .nav-icon svg { width: 20px; height: 20px; transition: transform var(--dur-base) var(--ease-spring); }
+.bottom-nav button[aria-current="page"] { color: var(--marigold-dark); }
+.bottom-nav button[aria-current="page"] .nav-icon svg { transform: translateY(-2px) scale(1.08); }
+.bottom-nav button:active { transform: scale(0.92); }
+.sidebar-nav { display: none; }
+
+/* ============ TABLET ============ */
+@media (min-width: 640px) {
+  .screen { padding-left: var(--space-6); padding-right: var(--space-6); }
+  .stat-row { gap: var(--space-5); }
+}
+
+/* ============ DESKTOP: sidebar replaces bottom nav ============ */
+@media (min-width: 960px) {
+  .app-shell { flex-direction: row; }
+  .bottom-nav { display: none; }
+  .sidebar-nav {
+    display: flex; flex-direction: column; width: 220px; flex-shrink: 0;
+    padding: var(--space-6) var(--space-4); border-right: 1px solid var(--border);
+    height: 100vh; position: sticky; top: 0;
+  }
+  .sidebar-nav .brand { font-family: var(--font-display); font-size: 1.2rem; line-height: 1.25; margin-bottom: var(--space-6); }
+  .sidebar-nav button {
+    display: flex; align-items: center; gap: var(--space-3); background: none; border: none;
+    text-align: left; padding: var(--space-3) var(--space-3); border-radius: var(--radius-md);
+    color: var(--text-secondary); font-size: var(--text-body); cursor: pointer; margin-bottom: var(--space-1);
+    transition: background var(--dur-fast) ease, color var(--dur-fast) ease, transform var(--dur-fast) ease;
+  }
+  .sidebar-nav button .nav-icon { display: flex; align-items: center; justify-content: center; }
+  .sidebar-nav button .nav-icon svg { width: 18px; height: 18px; }
+  .sidebar-nav button:hover { background: color-mix(in srgb, var(--marigold) 10%, transparent); color: var(--text-primary); }
+  .sidebar-nav button[aria-current="page"] { background: color-mix(in srgb, var(--marigold) 16%, var(--surface)); color: var(--text-primary); }
+  .sidebar-nav button:active { transform: scale(0.97); }
+  .sidebar-nav .settings-link { margin-top: auto; }
+  .sidebar-nav .sidebar-calendar { display: block; }
+
+  .main-content { flex: 1; min-height: 100vh; }
+  .screen { max-width: 760px; padding: var(--space-8); padding-bottom: var(--space-8); margin: 0; }
+
+  /* Today gets a two-column layout on desktop */
+  .today-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: var(--space-6); align-items: start; }
+}
+
+@media (min-width: 1280px) {
+  .screen { max-width: 880px; }
+}

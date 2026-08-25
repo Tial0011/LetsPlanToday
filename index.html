@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Let's Plan Today — your daily space</title>
+<meta name="description" content="A calm daily space to check in, journal, plan, and focus — one day at a time.">
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1B2E2A">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="64x64" href="assets/icons/favicon-64.png">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Plan Today">
+
+<link rel="stylesheet" href="css/global.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/responsive.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,380..500&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+</head>
+<body data-theme="default">
+<div class="app-shell">
+
+  <!-- Desktop sidebar -->
+  <nav class="sidebar-nav" aria-label="Primary" hidden>
+    <div class="brand">Let's Plan Today</div>
+    <button data-nav="today" aria-current="page"><span class="nav-icon" data-icon="sun"></span> Today</button>
+    <button data-nav="journal"><span class="nav-icon" data-icon="journal"></span> Journal</button>
+    <button data-nav="tasks"><span class="nav-icon" data-icon="check"></span> Tasks</button>
+    <button data-nav="focus"><span class="nav-icon" data-icon="timer"></span> Focus</button>
+    <button data-nav="progress"><span class="nav-icon" data-icon="progress"></span> Progress</button>
+    <div class="sidebar-calendar" id="sidebar-calendar"></div>
+    <button data-nav="settings" class="settings-link"><span class="nav-icon" data-icon="settings"></span> Settings</button>
+  </nav>
+
+  <div class="main-content">
+    <main id="screen-auth" class="screen" data-screen="auth"></main>
+    <main id="screen-today" class="screen" data-screen="today" hidden></main>
+    <main id="screen-journal" class="screen" data-screen="journal" hidden></main>
+    <main id="screen-tasks" class="screen" data-screen="tasks" hidden></main>
+    <main id="screen-focus" class="screen" data-screen="focus" hidden></main>
+    <main id="screen-reflection" class="screen" data-screen="reflection" hidden></main>
+    <main id="screen-progress" class="screen" data-screen="progress" hidden></main>
+    <main id="screen-settings" class="screen" data-screen="settings" hidden></main>
+  </div>
+
+  <!-- Mobile bottom nav -->
+  <nav class="bottom-nav" aria-label="Primary" hidden>
+    <button data-nav="today" aria-current="page"><span class="nav-icon" data-icon="sun"></span>Today</button>
+    <button data-nav="journal"><span class="nav-icon" data-icon="journal"></span>Journal</button>
+    <button data-nav="tasks"><span class="nav-icon" data-icon="check"></span>Tasks</button>
+    <button data-nav="focus"><span class="nav-icon" data-icon="timer"></span>Focus</button>
+    <button data-nav="progress"><span class="nav-icon" data-icon="progress"></span>Progress</button>
+  </nav>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<div class="install-banner" id="install-banner" hidden role="dialog" aria-label="Install app">
+  <div class="install-banner-text">
+    <strong>Want your planner one tap away?</strong>
+    <span>Faster access, offline support, no browser bar.</span>
+  </div>
+  <div class="install-banner-actions">
+    <button class="btn btn-primary" id="install-banner-yes" style="padding:var(--space-2) var(--space-4);">Install</button>
+    <button class="install-banner-dismiss" id="install-banner-dismiss">Not now</button>
+  </div>
+</div>
+
+<!-- Firebase (compat SDK — chosen to match this project's classic-script,
+     non-module architecture; swap for the modular SDK if you restructure
+     the app around ES modules later). -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+
+<script src="js/firebase-config.js"></script>
+<script src="js/firebase.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/calendar.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/tasks.js"></script>
+<script src="js/journal.js"></script>
+<script src="js/focus.js"></script>
+<script src="js/reflection.js"></script>
+<script src="js/pwa.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
