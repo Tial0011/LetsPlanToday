@@ -125,7 +125,7 @@ const PWA = (() => {
     }
   }
 
-  function startReminderWatcher(getSettings) {
+  function startReminderWatcher(getSettings, getContext) {
     if (reminderIntervalId) return;
     reminderIntervalId = setInterval(() => {
       const s = getSettings();
@@ -137,7 +137,15 @@ const PWA = (() => {
       const lastFired = Utils.Store.get("reminderLastFired", "");
       if (lastFired === todayKey) return;
       Utils.Store.set("reminderLastFired", todayKey);
-      fireReminder("Let's Plan Today", "One thing at a time — want to check in?");
+      const ctx = typeof getContext === "function" ? getContext() : null;
+      let body = "One thing at a time — want to check in?";
+      if (ctx && ctx.today3Total > 0) {
+        const remaining = ctx.today3Total - ctx.today3Done;
+        body = remaining <= 0
+          ? "You wrapped up all of Today's 3 already — nice. Journal or reflect before you're done?"
+          : `${remaining} of your Today's 3 ${remaining === 1 ? "is" : "are"} still open.`;
+      }
+      fireReminder("Let's Plan Today", body);
     }, 20000);
   }
 

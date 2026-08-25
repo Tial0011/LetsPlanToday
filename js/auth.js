@@ -53,34 +53,40 @@ const Auth = (() => {
   function renderAuthScreen() {
     const el = document.getElementById("screen-auth");
     el.innerHTML = `
-      <div style="max-width:360px;margin:10vh auto 0;">
-        <h1 style="margin-bottom:var(--space-2);">Let's Plan Today</h1>
-        <p>A quiet place to plan, journal, and focus — one day at a time.</p>
+      <div class="auth-wrap">
+        <span class="auth-flame">${Icons.flame()}</span>
+        <h1 class="auth-title">Let's Plan Today</h1>
+        <p class="auth-subtitle">A quiet place to plan, journal, and focus — one day at a time.</p>
 
-        <div class="journal-tabs" style="margin-bottom:var(--space-5);">
-          <button class="journal-tab" data-mode="signin" aria-selected="${mode === "signin"}">Sign in</button>
-          <button class="journal-tab" data-mode="signup" aria-selected="${mode === "signup"}">Create account</button>
+        <div class="journal-tabs auth-tabs">
+          <button type="button" class="journal-tab" data-mode="signin" aria-selected="${mode === "signin"}">Sign in</button>
+          <button type="button" class="journal-tab" data-mode="signup" aria-selected="${mode === "signup"}">Create account</button>
         </div>
 
-        <form id="auth-form" class="card">
+        <form id="auth-form" class="auth-form">
           ${mode === "signup" ? `
-            <div class="field" style="margin-bottom:var(--space-3);">
-              <label for="auth-name" style="display:block;font-size:var(--text-body-sm);color:var(--text-secondary);margin-bottom:var(--space-2);">Name</label>
-              <input class="add-input" id="auth-name" type="text" required placeholder="What should we call you?">
+            <div class="field">
+              <label for="auth-name">Name</label>
+              <input class="add-input" id="auth-name" type="text" required placeholder="What should we call you?" autocomplete="name">
             </div>` : ""}
-          <div class="field" style="margin-bottom:var(--space-3);">
-            <label for="auth-email" style="display:block;font-size:var(--text-body-sm);color:var(--text-secondary);margin-bottom:var(--space-2);">Email</label>
-            <input class="add-input" id="auth-email" type="email" required autocomplete="email">
+          <div class="field">
+            <label for="auth-email">Email</label>
+            <input class="add-input" id="auth-email" type="email" required autocomplete="email" inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="you@example.com">
           </div>
-          <div class="field" style="margin-bottom:var(--space-4);">
-            <label for="auth-password" style="display:block;font-size:var(--text-body-sm);color:var(--text-secondary);margin-bottom:var(--space-2);">Password</label>
-            <input class="add-input" id="auth-password" type="password" required minlength="6" autocomplete="${mode === "signup" ? "new-password" : "current-password"}">
+          <div class="field">
+            <label for="auth-password">Password</label>
+            <div class="auth-password-wrap">
+              <input class="add-input" id="auth-password" type="password" required minlength="6" autocomplete="${mode === "signup" ? "new-password" : "current-password"}" placeholder="At least 6 characters">
+              <button type="button" class="auth-password-toggle" id="auth-password-toggle" aria-label="Show password">Show</button>
+            </div>
           </div>
-          <div id="auth-error" role="alert" style="color:var(--danger);font-size:var(--text-body-sm);margin-bottom:var(--space-3);"></div>
-          <button class="btn btn-primary btn-block" type="submit">${mode === "signup" ? "Create account" : "Sign in"}</button>
+          <div id="auth-error" class="auth-error" role="alert"></div>
+          <button class="btn btn-primary btn-block" type="submit" id="auth-submit">${mode === "signup" ? "Create account" : "Sign in"}</button>
         </form>
 
-        <button class="btn btn-ghost btn-block" id="auth-google" style="margin-top:var(--space-3);">Continue with Google</button>
+        <div class="auth-divider"><span>or</span></div>
+
+        <button class="btn btn-ghost btn-block" id="auth-google">Continue with Google</button>
       </div>
     `;
 
@@ -88,12 +94,24 @@ const Auth = (() => {
       btn.addEventListener("click", () => { mode = btn.dataset.mode; renderAuthScreen(); });
     });
 
+    el.querySelector("#auth-password-toggle").addEventListener("click", () => {
+      const input = el.querySelector("#auth-password");
+      const btn = el.querySelector("#auth-password-toggle");
+      const showing = input.type === "text";
+      input.type = showing ? "password" : "text";
+      btn.textContent = showing ? "Show" : "Hide";
+    });
+
     el.querySelector("#auth-form").addEventListener("submit", async e => {
       e.preventDefault();
       const errorEl = el.querySelector("#auth-error");
+      const submitBtn = el.querySelector("#auth-submit");
       errorEl.textContent = "";
       const email = el.querySelector("#auth-email").value.trim();
       const password = el.querySelector("#auth-password").value;
+      const originalLabel = submitBtn.textContent;
+      submitBtn.disabled = true;
+      submitBtn.textContent = mode === "signup" ? "Creating account…" : "Signing in…";
       try {
         if (mode === "signup") {
           const name = el.querySelector("#auth-name").value.trim();
@@ -104,14 +122,21 @@ const Auth = (() => {
         PWA.notePostAuthMoment();
       } catch (err) {
         errorEl.textContent = friendlyError(err);
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalLabel;
       }
     });
 
     el.querySelector("#auth-google").addEventListener("click", async () => {
+      const googleBtn = el.querySelector("#auth-google");
+      googleBtn.disabled = true;
       try {
         await signInWithGoogle();
         PWA.notePostAuthMoment();
-      } catch (err) { el.querySelector("#auth-error").textContent = friendlyError(err); }
+      } catch (err) {
+        el.querySelector("#auth-error").textContent = friendlyError(err);
+        googleBtn.disabled = false;
+      }
     });
   }
 

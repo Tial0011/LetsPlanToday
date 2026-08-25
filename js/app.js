@@ -33,7 +33,7 @@
     const streak = CalendarUI.computeStreak(getActivityDates(), todayKey);
     return `
       <div class="streak-badge ${streak === 0 ? "streak-zero" : ""}" title="${streak} day streak">
-        <span class="streak-flame">${Icons.flame}</span>
+        <span class="streak-flame">${Icons.flame()}</span>
         <span>
           <div class="streak-num">${streak}</div>
           <div class="streak-label">day streak</div>
@@ -455,7 +455,7 @@
       { label: "First journal entry", done: journalDays >= 1, icon: Icons.journal },
       { label: "First focus session", done: focusSessions >= 1, icon: Icons.timer },
       { label: "3 day streak", done: streak >= 3, icon: Icons.badgeSprout },
-      { label: "7 day streak", done: streak >= 7, icon: Icons.flame },
+      { label: "7 day streak", done: streak >= 7, icon: Icons.flame() },
       { label: "10 focus sessions", done: focusSessions >= 10, icon: Icons.badgeStar }
     ];
 
@@ -464,12 +464,12 @@
       <p>Not a report card — just a record that you showed up.</p>
 
       <div class="progress-hero">
-        <span class="flame-big ${streak === 0 ? "streak-zero" : ""}">${Icons.flame}</span>
+        <span class="flame-big ${streak === 0 ? "streak-zero" : ""}">${Icons.flame()}</span>
         <div>
           <div class="streak-count">${streak} day${streak === 1 ? "" : "s"}</div>
           <div class="streak-copy">${streak > 0
-            ? `You've shown up ${streak} day${streak === 1 ? "" : "s"} in a row. Any one of these keeps it alive: write in your journal, add or complete a task, finish a focus session, or do your evening reflection.`
-            : "Do one of these today to start a streak: write in your journal, add or complete a task, finish a focus session, or do your evening reflection."}</div>
+            ? `You've shown up ${streak} day${streak === 1 ? "" : "s"} in a row. Journal, a task, a focus session, or a reflection each keep it alive.`
+            : "Journal, add a task, run a focus session, or reflect — any one starts a streak."}</div>
         </div>
       </div>
 
@@ -484,11 +484,6 @@
       </div>
 
       <div class="stat-row">
-        <div class="stat-card ${streak === 0 ? "streak-zero" : ""}">
-          <span class="stat-flame">${Icons.flame}</span>
-          <div class="stat-num-plain">${streak}</div>
-          <div class="label">Day streak</div>
-        </div>
         <div class="stat-card">${statRing(journalDays, Math.max(journalDays, 7))}<div class="label">Journal entries</div></div>
         <div class="stat-card">${statRing(focusSessions, Math.max(focusSessions, 10))}<div class="label">Focus sessions</div></div>
         <div class="stat-card">${statRing(reflections, Math.max(reflections, 7))}<div class="label">Reflections</div></div>
@@ -553,7 +548,7 @@
     const notifBtn = el.querySelector("#set-notif-enable");
     if (notifBtn) notifBtn.addEventListener("click", async () => {
       const result = await PWA.requestNotificationPermission();
-      if (result === "granted") { PWA.startReminderWatcher(getSettings); Utils.showToast("Reminders are on."); }
+      if (result === "granted") { PWA.startReminderWatcher(getSettings, getTodayReminderContext); Utils.showToast("Reminders are on."); }
       else if (result === "denied") Utils.showToast("Notifications are blocked in your browser settings.");
       renderSettings();
     });
@@ -592,6 +587,11 @@
     document.querySelectorAll(".main-content [data-screen]").forEach(el => {
       if (el.id !== "screen-auth") el.hidden = el.dataset.screen !== currentScreen;
     });
+  }
+
+  function getTodayReminderContext() {
+    const list = Tasks.forDate(todayKey).filter(t => t.isToday3);
+    return { today3Total: list.length, today3Done: list.filter(t => t.completed).length };
   }
 
   function showAuth() {
@@ -636,6 +636,40 @@
     if (["journal", "tasks", "focus", "progress", "settings"].includes(screen)) pendingShortcutScreen = screen;
   })();
 
+  // ---------- notifications banner ("Get a nudge to check in?") ----------
+  function showNotifBanner() {
+    const banner = document.getElementById("notif-banner");
+    if (!banner) return;
+    banner.hidden = false;
+  }
+  function hideNotifBanner() {
+    const banner = document.getElementById("notif-banner");
+    if (banner) banner.hidden = true;
+  }
+  function maybeOfferNotifications() {
+    if (!PWA.notificationsSupported()) return;
+    if (PWA.notificationPermission() !== "default") return; // already granted, denied, or unsupported
+    if (Utils.Store.get("notifBannerDismissed", false)) return;
+    showNotifBanner();
+  }
+  const notifBanner = document.getElementById("notif-banner");
+  if (notifBanner) {
+    notifBanner.querySelector("#notif-banner-yes").addEventListener("click", async () => {
+      const result = await PWA.requestNotificationPermission();
+      if (result === "granted") {
+        PWA.startReminderWatcher(getSettings, getTodayReminderContext);
+        Utils.showToast("Notifications are on — pick a time in Settings.");
+      } else if (result === "denied") {
+        Utils.showToast("Notifications are blocked in your browser settings.");
+      }
+      hideNotifBanner();
+    });
+    notifBanner.querySelector("#notif-banner-dismiss").addEventListener("click", () => {
+      Utils.Store.set("notifBannerDismissed", true);
+      hideNotifBanner();
+    });
+  }
+
   Auth.onAuthChange(user => {
     if (user) {
       Tasks.init(user.uid);
@@ -646,7 +680,8 @@
       showApp();
       goTo(pendingShortcutScreen || "today");
       pendingShortcutScreen = null;
-      PWA.startReminderWatcher(getSettings);
+      PWA.startReminderWatcher(getSettings, getTodayReminderContext);
+      setTimeout(maybeOfferNotifications, 4000); // staggered so it doesn't collide with the install banner
     } else {
       Tasks.teardown(); Journal.teardown(); Focus.teardown(); Reflection.teardown();
       showAuth();
