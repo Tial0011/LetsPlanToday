@@ -15,6 +15,7 @@ const PWA = (() => {
   let visibilityWakeLockHandlerBound = false;
   let eligibleCallback = null;
   let awaitingKeyMoment = false; // true right after signup/login, until the banner has shown once
+  let installReminderIntervalId = null;
 
   // ---------- service worker ----------
   function registerServiceWorker() {
@@ -84,6 +85,21 @@ const PWA = (() => {
 
   function dismissInstallBanner() {
     Utils.Store.set("installBannerDismissed", true);
+  }
+
+  // Gently keeps reminding someone who hasn't installed yet, every 10
+  // minutes, for as long as the app stays open — on top of (not instead
+  // of) the always-visible install icon, for whenever they feel like it.
+  // Deliberately ignores the one-time "Not now" dismissal on the banner
+  // itself, since the point here is a slower, recurring nudge rather than
+  // a one-shot prompt.
+  function startInstallReminders({ onEligible, onNudge } = {}) {
+    if (installReminderIntervalId) return;
+    installReminderIntervalId = setInterval(() => {
+      if (isStandalone()) return;
+      if (deferredInstallPrompt && onEligible) { onEligible(); return; }
+      if (onNudge) onNudge();
+    }, 10 * 60 * 1000);
   }
 
   function recordVisit() {
@@ -188,6 +204,7 @@ const PWA = (() => {
   return {
     registerServiceWorker, isStandalone,
     initInstallPrompt, notePostAuthMoment, canPromptInstall, promptInstall, dismissInstallBanner, recordVisit,
+    startInstallReminders,
     notificationsSupported, requestNotificationPermission, notificationPermission, startReminderWatcher,
     wakeLockSupported, acquireWakeLock, releaseWakeLock,
     initConnectivityToast

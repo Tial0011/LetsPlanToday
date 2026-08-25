@@ -11,6 +11,12 @@
   let settingsUnsub = null;
   let sidebarCalState = { year: new Date().getFullYear(), month: new Date().getMonth() };
   let journalCalState = null;
+  let deepFocusActive = false;       // true only while our own "Enter Deep Focus" fullscreen is on
+  let deepFocusPausedByLeaving = false;
+
+  // ---------- mood check-in feedback ----------
+  const MOOD_WORDS = { "😔": "Gentle.", "😐": "Steady.", "🙂": "Lovely.", "😄": "Radiant!" };
+  function moodWord(emoji) { return MOOD_WORDS[emoji] || "Noted."; }
 
   // ---------- static icon injection (nav bars use fixed markup) ----------
   function injectStaticIcons() {
@@ -157,7 +163,10 @@
     `;
 
     applyDayArc();
-    el.querySelectorAll(".mood-btn").forEach(btn => btn.addEventListener("click", () => Journal.setMood(todayKey, btn.dataset.mood)));
+    el.querySelectorAll(".mood-btn").forEach(btn => btn.addEventListener("click", () => {
+      Journal.setMood(todayKey, btn.dataset.mood);
+      Utils.showToast(moodWord(btn.dataset.mood));
+    }));
     Tasks.bindRowEvents(el);
     el.querySelector("#today-add-btn").addEventListener("click", addFromToday);
     el.querySelector("#today-add").addEventListener("keydown", e => { if (e.key === "Enter") addFromToday(); });
@@ -348,7 +357,8 @@
     const state = Focus.getState();
     if (!state) { renderFocus(); return; }
     const r = Focus.radius(), c = Focus.circumference();
-    const canDeepFocus = !!(document.documentElement.requestFullscreen);
+    const fullscreenSupported = !!document.documentElement.requestFullscreen;
+    const isFullscreen = !!document.fullscreenElement;
     el.innerHTML = `
       <div class="focus-session">
         <div class="focus-task-name">${Utils.escapeHtml(state.taskTitle)}</div>
@@ -363,7 +373,12 @@
           <button class="btn btn-ghost" id="focus-pause">${state.intervalId ? "Pause" : "Resume"}</button>
           <button class="btn btn-ghost" id="focus-finish">Finish early</button>
         </div>
-        ${canDeepFocus ? `<button class="btn-text" id="focus-deep">Enter Deep Focus (fullscreen)</button>` : ""}
+        ${fullscreenSupported
+          ? (isFullscreen
+              ? `<button class="btn-text" id="focus-deep-exit">Exit Deep Focus</button>`
+              : `<button class="btn-text" id="focus-deep">Enter Deep Focus (fullscreen)</button>`)
+          : ""}
+        ${isFullscreen ? `<p class="focus-deep-hint">Deep Focus is on — if you switch away from this tab, the timer pauses so that time away isn't counted.</p>` : ""}
       </div>
     `;
     updateRing();
@@ -375,17 +390,50 @@
     });
     el.querySelector("#focus-finish").addEventListener("click", () => {
       Focus.stop();
+      deepFocusActive = false;
+      deepFocusPausedByLeaving = false;
       PWA.releaseWakeLock();
       if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
       goTo("today");
     });
     const deepBtn = el.querySelector("#focus-deep");
     if (deepBtn) deepBtn.addEventListener("click", () => {
-      document.documentElement.requestFullscreen().catch(() => {
+      document.documentElement.requestFullscreen().then(() => {
+        deepFocusActive = true;
+      }).catch(() => {
         Utils.showToast("Fullscreen isn't available here — the timer still runs.");
       });
     });
+    const deepExitBtn = el.querySelector("#focus-deep-exit");
+    if (deepExitBtn) deepExitBtn.addEventListener("click", () => {
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    });
   }
+
+  // ---------- Deep Focus Mode: leaving the tab pauses it, so that time away isn't counted ----------
+  document.addEventListener("visibilitychange", () => {
+    if (!deepFocusActive) return;
+    const s = Focus.getState();
+    if (document.visibilityState === "hidden") {
+      if (s && s.intervalId) {
+        Focus.pause();
+        PWA.releaseWakeLock();
+        deepFocusPausedByLeaving = true;
+      }
+    } else if (document.visibilityState === "visible" && deepFocusPausedByLeaving) {
+      deepFocusPausedByLeaving = false;
+      Utils.showToast("You left Deep Focus — the timer paused, so that time wasn't counted.");
+      if (currentScreen === "focus") renderFocusSession();
+    }
+  });
+
+  // Keep the button + hint in sync whenever fullscreen is toggled from
+  // anywhere (our own buttons, the browser's Esc key, etc.), and treat
+  // leaving fullscreen as leaving Deep Focus Mode.
+  document.addEventListener("fullscreenchange", () => {
+    if (!document.fullscreenElement) deepFocusActive = false;
+    if (currentScreen === "focus" && Focus.getState()) renderFocusSession();
+  });
 
   function updateRing() {
     const state = Focus.getState();
@@ -399,6 +447,8 @@
   }
 
   function complete(state) {
+    deepFocusActive = false;
+    deepFocusPausedByLeaving = false;
     PWA.releaseWakeLock();
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     Utils.showToast(`Nice work. You focused for ${Math.round(state.totalSeconds / 60)} minutes.`);
@@ -581,6 +631,7 @@
 
   // ---------- auth gate ----------
   function showApp() {
+    refreshInstallFab();
     document.getElementById("screen-auth").hidden = true;
     document.querySelector(".sidebar-nav").hidden = false;
     document.querySelector(".bottom-nav").hidden = false;
@@ -626,6 +677,23 @@
     installBanner.querySelector("#install-banner-dismiss").addEventListener("click", () => {
       PWA.dismissInstallBanner();
       hideInstallBanner();
+    });
+  }
+
+  // ---------- persistent install icon ("download to home screen whenever") ----------
+  function refreshInstallFab() {
+    const fab = document.getElementById("install-fab");
+    if (fab) fab.hidden = PWA.isStandalone();
+  }
+  const installFab = document.getElementById("install-fab");
+  if (installFab) {
+    installFab.addEventListener("click", async () => {
+      if (PWA.canPromptInstall()) {
+        await PWA.promptInstall();
+        refreshInstallFab();
+      } else {
+        Utils.showToast("Open your browser menu and choose \"Add to Home Screen\" or \"Install app\".");
+      }
     });
   }
 
@@ -697,4 +765,9 @@
   PWA.initConnectivityToast();
   PWA.recordVisit();
   PWA.initInstallPrompt({ onEligible: showInstallBanner });
+  PWA.startInstallReminders({
+    onEligible: showInstallBanner,
+    onNudge: () => { if (!PWA.isStandalone()) Utils.showToast("Tip: tap the download icon anytime to add this app to your home screen."); }
+  });
+  refreshInstallFab();
 })();

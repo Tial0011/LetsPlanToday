@@ -86,7 +86,7 @@ const Auth = (() => {
 
         <div class="auth-divider"><span>or</span></div>
 
-        <button class="btn btn-ghost btn-block" id="auth-google">Continue with Google</button>
+        <button class="btn btn-ghost btn-block auth-google-btn" id="auth-google"><span class="auth-google-icon">${Icons.googleG}</span>Continue with Google</button>
       </div>
     `;
 

@@ -18,5 +18,12 @@ const Icons = (() => {
   const badgeStar = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6-4.5-4.2 6.1-.7Z"></path></svg>`;
   const badgeSprout = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V11"></path><path d="M12 11c0-3.5-2.5-6-6.5-6C5.5 9 8.5 11 12 11Z"></path><path d="M12 8c0-3 2-5 5.5-5C17.5 6.5 15.5 8.5 12 8Z"></path></svg>`;
 
-  return { sun, journal, check, timer, moon, progress, settings, flame, badgeStar, badgeSprout };
+  // Official multi-colour "G" mark, used only beside the Google sign-in
+  // button — kept as real brand colours rather than currentColor.
+  const googleG = `<svg viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.62Z"></path><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.96v2.33A9 9 0 0 0 9 18Z"></path><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.66 9c0-.59.1-1.17.29-1.7V4.97H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.03l2.99-2.33Z"></path><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.97l2.99 2.33C4.66 5.17 6.65 3.58 9 3.58Z"></path></svg>`;
+
+  // Simple download/save tray icon for the "install this app" affordance.
+  const download = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v11"></path><path d="M7.5 10.5 12 15l4.5-4.5"></path><path d="M4.5 16.5v2a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-2"></path></svg>`;
+
+  return { sun, journal, check, timer, moon, progress, settings, flame, badgeStar, badgeSprout, googleG, download };
 })();
