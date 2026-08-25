@@ -98,6 +98,12 @@ const Tasks = (() => {
     return [...new Set(cache.map(t => t.date))];
   }
 
+  // Total completed tasks across all dates — feeds the "tasks completed"
+  // milestones on the Progress screen.
+  function completedCount() {
+    return cache.filter(t => t.completed).length;
+  }
+
   async function toggleComplete(id) {
     const uid = currentUid();
     const t = cache.find(t => t.id === id);
@@ -159,7 +165,7 @@ const Tasks = (() => {
   }
 
   return {
-    init, teardown, forDate, add, toggleComplete, toggleToday3, remove, activeDates,
+    init, teardown, forDate, add, toggleComplete, toggleToday3, remove, activeDates, completedCount,
     renderTaskRow, bindRowEvents,
     set onChange(fn) { onChange = fn; }
   };

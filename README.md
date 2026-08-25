@@ -31,6 +31,44 @@ firestore.rules
 firestore.indexes.json
 ```
 
+## Phase 8 — settings, reminders & progress follow-ups
+
+Addressed in this pass: the name field in Settings started blank instead of
+picking up the name already on the account, the accent themes barely
+changed anything beyond a button or two, journaling on mobile kept closing
+the keyboard mid-sentence, and reminders were limited to a single
+custom time with no push-notification-backed schedule.
+
+- **Name auto-fill.** `initSettingsListener()` now falls back to the
+  Firebase Auth `displayName` (set at signup, or supplied by Google
+  sign-in) whenever there's no `name` saved yet in the settings doc, so a
+  new user sees their own name immediately. It's still fully editable (or
+  clearable) in Settings — once saved, that value is what's used.
+- **Full-repaint themes.** `lavender`, `sage`, and `peach` previously only
+  overrode the accent color (`--marigold`), so most of the app looked
+  identical across them — only buttons and highlights changed, unlike
+  `dark`, which overrides background/surface/border/text and visibly
+  repaints everything. Each theme now sets its own `--paper`,
+  `--paper-raised`, `--border`, `--text-primary`, `--text-secondary`, and
+  accent colors, so switching themes now recolors the whole app the same
+  way `dark` always did.
+- **Journal focus fix.** Every debounced autosave wrote to Firestore, which
+  echoed back through the `onSnapshot` listener and re-rendered the whole
+  journal screen — destroying and recreating the `<textarea>` mid-sentence,
+  which closed the on-screen keyboard on mobile roughly every 500ms while
+  typing. `renderJournal()` now skips rebuilding the screen while that
+  textarea has focus, so typing is never interrupted.
+- **4x/day check-in reminders.** A new toggle in Settings ("Check-in
+  reminders") turns on a fixed schedule — 7:00 AM, 12:00 PM, 4:00 PM,
+  7:00 PM — on top of the existing custom daily-reminder time. Both the
+  client-side local watcher (`pwa.js`, tab must be open) and the
+  server-side Cloud Function (`functions/index.js`, works with the browser
+  fully closed once deployed + configured) honor this schedule.
+- **More milestones.** The Progress screen's badge grid grew from 5 to 15
+  milestones across journal entries (1/7/30), focus sessions (1/10/25),
+  tasks completed (1/10/50 — a new `Tasks.completedCount()`), reflections
+  (1/7), and streaks (3/7/14/30 days).
+
 ## Phase 7 — engagement & polish pass
 
 Addressed in this pass: the app felt flat and static, the journal's "Calendar"
@@ -100,7 +138,9 @@ users/{userId}/journal/{dateKey}        — one doc per day: text, mood, updated
 users/{userId}/tasks/{taskId}           — title, date, completed, isToday3
 users/{userId}/focusSessions/{id}       — taskTitle, durationPlanned, completedAt
 users/{userId}/reflections/{dateKey}    — wentWell, didntGoAsPlanned, proudOf, carryIntoTomorrow
-users/{userId}/settings/preferences     — name, theme, focusDuration, reminderTime
+users/{userId}/settings/preferences     — name, theme, focusDuration, reminderTime,
+                                           checkInReminders, timezone, lastReminderSentDate,
+                                           lastCheckinSent
 ```
 
 Journal entries and reflections use the date string (`YYYY-MM-DD`) as the document ID directly — one document per day, so "today's entry" is always a single direct read, and history/calendar views are a plain collection listing.
@@ -115,7 +155,11 @@ Every read/write under `users/{userId}/...` requires `request.auth.uid == userId
 
 **Offline.** `sw.js` precaches the app shell (HTML/CSS/JS/icons) on install and serves it cache-first, so the app still opens with no connection. Firestore reads/writes are deliberately *not* intercepted by the service worker — Firestore's own `enablePersistence()` (in `firebase.js`) already queues writes and syncs them when connectivity returns, which handles conflict-safety far better than a generic cache would. A small "You're offline / Back online" toast (in `pwa.js`) gives users a plain-language signal either way.
 
-**Reminders.** Settings has a **Turn on reminders** button that requests Notification permission, then `pwa.js` checks every 20s whether the current time matches the saved reminder time and fires one gentle notification a day via the service worker. Honesty matters here: this only works while the app/tab is open somewhere (foreground or background) — a fully closed browser can't be woken without a push server, which this project doesn't have. The Settings copy says so plainly rather than implying otherwise.
+**Reminders.** Settings offers two independent layers: a **custom daily reminder** (pick any time) and a fixed **4x/day check-in schedule** (7:00 AM, 12:00 PM, 4:00 PM, 7:00 PM), each toggled on separately. Both work two ways:
+- **While a tab is open** (foreground or background): `pwa.js` checks every 20s whether the current time matches, and fires a notification via the service worker. This works with zero server setup.
+- **Even with the browser fully closed:** if push is enabled (Settings → "Turn on reminders", requires `firebaseVapidKey` in `js/firebase-config.js` and the Cloud Function in `functions/` deployed — see `functions/README.md`), `functions/index.js` runs on a 1-minute Cloud Scheduler and sends the notification server-side via FCM instead, regardless of whether any tab is open.
+
+If push isn't configured, reminders silently fall back to the tab-open-only local watcher — the Settings copy says so plainly rather than implying otherwise.
 
 **Deep Focus Mode.** Focus sessions call `navigator.wakeLock.request("screen")` where supported, so the screen won't sleep mid-session, and re-acquire it automatically if the tab regains visibility. An optional "Enter Deep Focus (fullscreen)" button uses the Fullscreen API. Neither of these — nor anything else a browser can do — can lock a phone or stop someone from switching apps; the in-app copy never claims otherwise.
 
@@ -147,8 +191,7 @@ Two kinds of checks live here: what's already been verified automatically/by cod
 ## What's not built yet
 
 - Onboarding flow (name + "what to improve" steps) — currently name is set directly in Settings
-- Non-invasive product analytics events (`journal_created`, `focus_completed`, etc.) — Phase 7
-- Push notifications that work with the app fully closed (would need a small backend + the Push API — out of scope without a server)
+- Non-invasive product analytics events (`journal_created`, `focus_completed`, etc.)
 - Netlify/GitHub deployment instructions, future-feature recommendations (added at final delivery)
 - Polish pass: micro-interactions, loading states, copy/spacing refinement (Phase 7)
 

@@ -77,10 +77,18 @@
       .catch(() => Utils.showToast("We couldn't save that right now. Check your connection and try again."));
   }
 
-  function initSettingsListener(uid) {
+  // fallbackName comes from the Firebase Auth profile (the name typed at
+  // signup, or the name Google hands us on Google sign-in) — used only
+  // when there's no "name" saved in the settings doc yet, so a brand new
+  // user sees their login name right away without having to type it in
+  // Settings themselves. Once they save anything in that field, their
+  // saved value takes over for good (including clearing it on purpose).
+  function initSettingsListener(uid, fallbackName) {
     if (settingsUnsub) settingsUnsub();
     settingsUnsub = FB.col(uid, "settings").doc("preferences").onSnapshot(doc => {
-      settingsCache = { name: "", theme: "default", focusDuration: 25, ...(doc.data() || {}) };
+      const data = doc.data() || {};
+      const name = Object.prototype.hasOwnProperty.call(data, "name") ? data.name : (fallbackName || "");
+      settingsCache = { theme: "default", focusDuration: 25, ...data, name };
       applyTheme();
       render();
     });
@@ -183,8 +191,18 @@
 
   // ---------- JOURNAL ----------
   function renderJournal() {
-    journalCalState = null; // re-center the month grid on whatever date we land on next
     const el = document.getElementById("screen-journal");
+    // While the journal textarea has focus, skip the rebuild entirely.
+    // Without this, every debounced autosave writes to Firestore, which
+    // echoes back through onSnapshot -> render() -> here, replacing the
+    // <textarea> DOM node mid-sentence. On mobile that closes the on-screen
+    // keyboard every ~500ms while typing; on desktop it drops the cursor
+    // position. The textarea already reflects everything the user has
+    // typed, so there's nothing to redraw until they leave it.
+    const active = document.activeElement;
+    if (active && active.id === "journal-text" && el && el.contains(active)) return;
+
+    journalCalState = null; // re-center the month grid on whatever date we land on next
     const entry = Journal.get(journalViewDate);
     const isToday = journalViewDate === todayKey;
     const prompt = entry?.promptUsed || Journal.randomPrompt();
@@ -501,12 +519,24 @@
     const streak = CalendarUI.computeStreak(activity, todayKey);
     const week = CalendarUI.lastSevenDays(activity, todayKey);
 
+    const tasksCompleted = Tasks.completedCount();
+
     const milestones = [
       { label: "First journal entry", done: journalDays >= 1, icon: Icons.journal },
+      { label: "7 journal entries", done: journalDays >= 7, icon: Icons.journal },
+      { label: "30 journal entries", done: journalDays >= 30, icon: Icons.journal },
       { label: "First focus session", done: focusSessions >= 1, icon: Icons.timer },
+      { label: "10 focus sessions", done: focusSessions >= 10, icon: Icons.timer },
+      { label: "25 focus sessions", done: focusSessions >= 25, icon: Icons.timer },
+      { label: "First task done", done: tasksCompleted >= 1, icon: Icons.check },
+      { label: "10 tasks done", done: tasksCompleted >= 10, icon: Icons.check },
+      { label: "50 tasks done", done: tasksCompleted >= 50, icon: Icons.check },
+      { label: "First reflection", done: reflections >= 1, icon: Icons.moon },
+      { label: "7 reflections", done: reflections >= 7, icon: Icons.moon },
       { label: "3 day streak", done: streak >= 3, icon: Icons.badgeSprout },
       { label: "7 day streak", done: streak >= 7, icon: Icons.flame() },
-      { label: "10 focus sessions", done: focusSessions >= 10, icon: Icons.badgeStar }
+      { label: "14 day streak", done: streak >= 14, icon: Icons.flame() },
+      { label: "30 day streak", done: streak >= 30, icon: Icons.badgeStar }
     ];
 
     el.innerHTML = `
@@ -580,6 +610,14 @@
         ${renderReminderNote()}
       </div>
       <div class="settings-group">
+        <h3>Check-in reminders</h3>
+        <label class="checkbox-row">
+          <input type="checkbox" id="set-checkins" ${s.checkInReminders ? "checked" : ""}>
+          <span>Nudge me 4x a day — 7:00 AM, 12:00 PM, 4:00 PM, 7:00 PM</span>
+        </label>
+        <p style="margin-top:var(--space-2);">On top of your daily reminder above, these are fixed check-in times to help you stay on track through the day.</p>
+      </div>
+      <div class="settings-group">
         <h3>App</h3>
         ${renderInstallRow()}
       </div>
@@ -593,6 +631,10 @@
     el.querySelector("#set-focus-duration").addEventListener("change", e => setSettings({ focusDuration: parseInt(e.target.value, 10) }));
     el.querySelector("#set-reminder").addEventListener("change", e => setSettings({
       reminderTime: e.target.value,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    }));
+    el.querySelector("#set-checkins").addEventListener("change", e => setSettings({
+      checkInReminders: e.target.checked,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
     }));
     el.querySelectorAll(".theme-swatch").forEach(btn => btn.addEventListener("click", () => setSettings({ theme: btn.dataset.theme })));
@@ -764,7 +806,7 @@
       Journal.init(user.uid);
       Focus.init(user.uid);
       Reflection.init(user.uid);
-      initSettingsListener(user.uid);
+      initSettingsListener(user.uid, user.displayName);
       showApp();
       goTo(pendingShortcutScreen || "today");
       pendingShortcutScreen = null;

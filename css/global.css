@@ -64,9 +64,21 @@
   --surface: #16302B;
 }
 
-[data-theme="lavender"] { --marigold: #9C87C9; --marigold-dark: #7F69B3; --dusk-rose: #B98FC9; }
-[data-theme="sage"]     { --marigold: #7FA37A; --marigold-dark: #66875F; --paper: #F0F3EE; }
-[data-theme="peach"]    { --marigold: #E5926B; --marigold-dark: #CC7852; --paper: #FBF1EA; }
+[data-theme="lavender"] {
+  --paper: #F3F0FA; --paper-raised: #FBFAFE; --bg: var(--paper); --surface: var(--paper-raised);
+  --border: #DCD3EE; --text-primary: #2B2140; --text-secondary: #6B5E85;
+  --marigold: #9C87C9; --marigold-dark: #7F69B3; --dusk-rose: #B98FC9;
+}
+[data-theme="sage"] {
+  --paper: #EFF4EC; --paper-raised: #F8FBF6; --bg: var(--paper); --surface: var(--paper-raised);
+  --border: #D3E0CC; --text-primary: #1F2E1B; --text-secondary: #5C6E56;
+  --marigold: #7FA37A; --marigold-dark: #5F8459; --dusk-rose: #C79B5C;
+}
+[data-theme="peach"] {
+  --paper: #FBF1EA; --paper-raised: #FFF8F3; --bg: var(--paper); --surface: var(--paper-raised);
+  --border: #F0D8C8; --text-primary: #3A2418; --text-secondary: #8A6552;
+  --marigold: #E5926B; --marigold-dark: #CC7852; --dusk-rose: #C97B84;
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }

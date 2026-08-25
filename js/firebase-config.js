@@ -24,7 +24,7 @@ const firebaseConfig = {
   projectId: "signuppage-soun",
   storageBucket: "signuppage-soun.firebasestorage.app",
   messagingSenderId: "753481675025",
-  appId: "1:753481675025:web:639ff3399bba672a35dcb0",
+  appId: "1:753481675025:web:639ff3399bba672a35dcb0"
 };
 
 // Needed for real push notifications (Firebase Cloud Messaging), separate
@@ -32,5 +32,4 @@ const firebaseConfig = {
 // → Cloud Messaging → "Web configuration" → Web Push certificates →
 // "Generate key pair". Paste the key string below. Push notifications
 // silently no-op until this is filled in.
-const firebaseVapidKey =
-  "BFYuaoU53DFCc9yFvvKsDQRIu7QQeLIUp-mKlqiaiGCKi6Nes-Wi3GqO5cxRMgDWqB0MCKZG1fQPp50xJdzXgwcE";
+const firebaseVapidKey = "BFYuaoU53DFCc9yFvvKsDQRIu7QQeLIUp-mKlqiaiGCKi6Nes-Wi3GqO5cxRMgDWqB0MCKZG1fQPp50xJdzXgwc";

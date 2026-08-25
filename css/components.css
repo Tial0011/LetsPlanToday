@@ -291,6 +291,12 @@
 .settings-group input[type="text"], .settings-group input[type="time"], .settings-group select {
   width: 100%; padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--surface); font-size: var(--text-body); margin-top: var(--space-2);
 }
+.checkbox-row {
+  display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-2);
+  padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--border);
+  background: var(--surface); cursor: pointer; font-size: var(--text-body-sm);
+}
+.checkbox-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--marigold-dark); flex-shrink: 0; }
 
 /* ============ EMPTY STATE ============ */
 .empty-state { text-align: center; padding: var(--space-8) var(--space-4); color: var(--text-secondary); }

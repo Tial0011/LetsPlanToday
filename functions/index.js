@@ -41,16 +41,12 @@ function nowPartsInTZ(tz) {
   }
 }
 
-async function processOneUser(settingsDoc) {
-  const uid = settingsDoc.ref.parent.parent.id;
-  const data = settingsDoc.data() || {};
-  const tz = data.timezone || "UTC";
-  const { dateKey, hhmm } = nowPartsInTZ(tz);
+// Fixed 4x/day check-in schedule (opt-in via the "Check-in reminders" toggle
+// in Settings) — kept in sync with CHECK_IN_TIMES in js/pwa.js, which runs
+// the same schedule locally as a fallback while a tab is open.
+const CHECK_IN_TIMES = ["07:00", "12:00", "16:00", "19:00"];
 
-  if (hhmm !== data.reminderTime) return;              // not their reminder minute
-  if (data.lastReminderSentDate === dateKey) return;    // already sent today
-
-  const userRef = db.collection("users").doc(uid);
+async function sendToUser(userRef, uid, dateKey, title) {
   const tokensSnap = await userRef.collection("fcmTokens").get();
   if (tokensSnap.empty) return;                         // nobody registered a device
   const tokens = tokensSnap.docs.map(d => d.id);
@@ -71,7 +67,7 @@ async function processOneUser(settingsDoc) {
 
   const response = await messaging.sendEachForMulticast({
     tokens,
-    notification: { title: "Let's Plan Today", body },
+    notification: { title, body },
     webpush: {
       notification: { icon: "/assets/icons/icon-192.png", badge: "/assets/icons/icon-192.png" },
       fcmOptions: { link: "/" }
@@ -87,8 +83,30 @@ async function processOneUser(settingsDoc) {
     .filter(Boolean)
     .map(token => userRef.collection("fcmTokens").doc(token).delete());
   await Promise.all(cleanup);
+}
 
-  await settingsDoc.ref.set({ lastReminderSentDate: dateKey }, { merge: true });
+async function processOneUser(settingsDoc) {
+  const uid = settingsDoc.ref.parent.parent.id;
+  const data = settingsDoc.data() || {};
+  const tz = data.timezone || "UTC";
+  const { dateKey, hhmm } = nowPartsInTZ(tz);
+  const userRef = db.collection("users").doc(uid);
+
+  // Custom daily reminder (user-picked time).
+  if (data.reminderTime && hhmm === data.reminderTime && data.lastReminderSentDate !== dateKey) {
+    await sendToUser(userRef, uid, dateKey, "Let's Plan Today");
+    await settingsDoc.ref.set({ lastReminderSentDate: dateKey }, { merge: true });
+  }
+
+  // Fixed 4x/day check-ins, opt-in via Settings. Tracked per-slot so all
+  // four can fire on the same day without clobbering each other.
+  if (data.checkInReminders && CHECK_IN_TIMES.includes(hhmm)) {
+    const sentMap = data.lastCheckinSent || {};
+    if (sentMap[hhmm] !== dateKey) {
+      await sendToUser(userRef, uid, dateKey, "Let's Plan Today");
+      await settingsDoc.ref.set({ lastCheckinSent: { ...sentMap, [hhmm]: dateKey } }, { merge: true });
+    }
+  }
 }
 
 // Cloud Scheduler resolution is 1 minute — matches the precision the
@@ -96,7 +114,7 @@ async function processOneUser(settingsDoc) {
 exports.sendDailyReminders = onSchedule("every 1 minutes", async () => {
   const settingsSnap = await db.collectionGroup("settings").get();
   const jobs = settingsSnap.docs
-    .filter(doc => doc.id === "preferences" && doc.data().reminderTime)
+    .filter(doc => doc.id === "preferences" && (doc.data().reminderTime || doc.data().checkInReminders))
     .map(doc => processOneUser(doc).catch(err => console.error(`Reminder failed for ${doc.ref.path}:`, err)));
   await Promise.all(jobs);
 });

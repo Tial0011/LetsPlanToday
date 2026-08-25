@@ -190,27 +190,49 @@ const PWA = (() => {
     }
   }
 
+  // Fixed 4x/day check-in schedule — same times whether reminders run
+  // locally here or via the server-side Cloud Function (see functions/index.js,
+  // CHECK_IN_TIMES, which must be kept in sync with this list).
+  const CHECK_IN_TIMES = ["07:00", "12:00", "16:00", "19:00"];
+
+  function checkInBody(ctx) {
+    if (ctx && ctx.today3Total > 0) {
+      const remaining = ctx.today3Total - ctx.today3Done;
+      return remaining <= 0
+        ? "You wrapped up all of Today's 3 already — nice. Journal or reflect before you're done?"
+        : `${remaining} of your Today's 3 ${remaining === 1 ? "is" : "are"} still open.`;
+    }
+    return "One thing at a time — want to check in?";
+  }
+
   function startReminderWatcher(getSettings, getContext) {
     if (reminderIntervalId) return;
     reminderIntervalId = setInterval(() => {
       const s = getSettings();
-      if (!s.reminderTime || Notification.permission !== "granted") return;
+      if (Notification.permission !== "granted") return;
       const now = new Date();
       const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-      if (hhmm !== s.reminderTime) return;
       const todayKey = Utils.todayKey();
-      const lastFired = Utils.Store.get("reminderLastFired", "");
-      if (lastFired === todayKey) return;
-      Utils.Store.set("reminderLastFired", todayKey);
       const ctx = typeof getContext === "function" ? getContext() : null;
-      let body = "One thing at a time — want to check in?";
-      if (ctx && ctx.today3Total > 0) {
-        const remaining = ctx.today3Total - ctx.today3Done;
-        body = remaining <= 0
-          ? "You wrapped up all of Today's 3 already — nice. Journal or reflect before you're done?"
-          : `${remaining} of your Today's 3 ${remaining === 1 ? "is" : "are"} still open.`;
+
+      // Custom daily reminder (user-picked time).
+      if (s.reminderTime && hhmm === s.reminderTime) {
+        const lastFired = Utils.Store.get("reminderLastFired", "");
+        if (lastFired !== todayKey) {
+          Utils.Store.set("reminderLastFired", todayKey);
+          fireReminder("Let's Plan Today", checkInBody(ctx));
+        }
       }
-      fireReminder("Let's Plan Today", body);
+
+      // Fixed 4x/day check-ins, opt-in via Settings.
+      if (s.checkInReminders && CHECK_IN_TIMES.includes(hhmm)) {
+        const key = `checkinLastFired:${hhmm}`;
+        const lastFired = Utils.Store.get(key, "");
+        if (lastFired !== todayKey) {
+          Utils.Store.set(key, todayKey);
+          fireReminder("Let's Plan Today", checkInBody(ctx));
+        }
+      }
     }, 20000);
   }
 
