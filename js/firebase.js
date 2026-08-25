@@ -32,5 +32,21 @@ const FB = (() => {
   function userDoc(uid) { return db.collection("users").doc(uid); }
   function col(uid, name) { return userDoc(uid).collection(name); }
 
-  return { auth, db, userDoc, col };
+  // Messaging isn't supported everywhere (e.g. Safari < 16.4, some private
+  // browsing modes) — guard so the rest of the app can check FB.messaging
+  // truthiness instead of catching exceptions everywhere.
+  let messaging = null;
+  try {
+    if (firebase.messaging && firebase.messaging.isSupported) {
+      firebase.messaging.isSupported().then(supported => {
+        if (supported) messaging = firebase.messaging();
+      });
+    } else if (firebase.messaging) {
+      messaging = firebase.messaging();
+    }
+  } catch (err) {
+    console.warn("Firebase Messaging not available:", err.message);
+  }
+
+  return { auth, db, userDoc, col, get messaging() { return messaging; } };
 })();

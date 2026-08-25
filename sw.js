@@ -13,7 +13,39 @@
 //   - Navigation requests fall back to the cached index.html shell if the
 //     network is unavailable, so opening the app offline still works.
 
-const CACHE_VERSION = "v8";
+// ---------- Firebase Cloud Messaging: background push ----------
+// Wrapped in try/catch — importScripts is synchronous, so if the device is
+// offline when this worker wakes up, letting it throw would break the whole
+// service worker (including the offline caching below). A missed push
+// handler registration is a much smaller loss than that.
+try {
+  importScripts("https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js");
+  importScripts("https://www.gstatic.com/firebasejs/10.13.0/firebase-messaging-compat.js");
+  importScripts("./js/firebase-config.js");
+
+  firebase.initializeApp(firebaseConfig);
+  const messaging = firebase.messaging();
+
+  // Fires when a push arrives while no tab has focus (or the browser is
+  // backgrounded) — this is what makes reminders work with the app closed.
+  // Foreground messages are handled separately in js/pwa.js via onMessage().
+  messaging.onBackgroundMessage(payload => {
+    const title = (payload.notification && payload.notification.title) || "Let's Plan Today";
+    const body = (payload.notification && payload.notification.body) || "Check in on your day?";
+    self.registration.showNotification(title, {
+      body,
+      icon: "./assets/icons/icon-192.png",
+      badge: "./assets/icons/icon-192.png",
+      tag: "plan-today-reminder"
+    });
+  });
+} catch (err) {
+  // Offline cold-start, or firebase-messaging just isn't supported here —
+  // the rest of the service worker (caching) still needs to run below.
+  console.warn("Push messaging unavailable in this service worker context:", err && err.message);
+}
+
+const CACHE_VERSION = "v9";
 const SHELL_CACHE = `plan-today-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `plan-today-runtime-${CACHE_VERSION}`;
 
@@ -128,9 +160,10 @@ self.addEventListener("fetch", event => {
   }
 });
 
-// ---------- local notifications (see js/pwa.js for scheduling logic) ----------
-// The app schedules these itself while open; this handler just makes the
-// resulting notification behave sensibly (focus/open the app on click).
+// ---------- notification clicks ----------
+// Handles clicks for BOTH kinds of notification this app shows: the local
+// ones scheduled by js/pwa.js while a tab is open, and the background push
+// ones shown by onBackgroundMessage() above when the app is closed.
 self.addEventListener("notificationclick", event => {
   event.notification.close();
   event.waitUntil(

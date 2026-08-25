@@ -126,6 +126,55 @@ const PWA = (() => {
     return notificationsSupported() ? Notification.permission : "unsupported";
   }
 
+  // ---------- real push notifications (Firebase Cloud Messaging) ----------
+  // Unlike startReminderWatcher() below (which only fires while this tab is
+  // open), this lets a server-side Cloud Function push a notification to
+  // the device at the right time even if the browser is fully closed.
+  // Requires: firebaseVapidKey set in js/firebase-config.js, and the
+  // Cloud Function in /functions deployed (see functions/README.md).
+  async function enablePushNotifications(uid) {
+    if (!notificationsSupported()) return "unsupported";
+    const perm = await requestNotificationPermission();
+    if (perm !== "granted") return perm;
+    if (!FB.messaging) return "unsupported";
+    if (!firebaseVapidKey || firebaseVapidKey.startsWith("PASTE_")) {
+      console.warn("firebaseVapidKey isn't set in js/firebase-config.js — push notifications can't register.");
+      return "unconfigured";
+    }
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const token = await FB.messaging.getToken({ vapidKey: firebaseVapidKey, serviceWorkerRegistration: reg });
+      if (!token) return "denied";
+      await FB.col(uid, "fcmTokens").doc(token).set({
+        token,
+        createdAt: Date.now(),
+        userAgent: navigator.userAgent,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      }, { merge: true });
+      // Foreground messages don't auto-show a system notification — the tab
+      // is already open, so surface it as an in-app toast instead.
+      FB.messaging.onMessage(payload => {
+        const body = (payload.notification && payload.notification.body) || "Check in on your day?";
+        Utils.showToast(body);
+      });
+      return "granted";
+    } catch (err) {
+      console.warn("Push registration failed:", err);
+      return "error";
+    }
+  }
+
+  async function disablePushNotifications(uid) {
+    if (!FB.messaging) return;
+    try {
+      const token = await FB.messaging.getToken().catch(() => null);
+      if (token) {
+        await FB.col(uid, "fcmTokens").doc(token).delete().catch(() => {});
+        await FB.messaging.deleteToken().catch(() => {});
+      }
+    } catch (err) { /* best-effort */ }
+  }
+
   async function fireReminder(title, body) {
     if (!notificationsSupported() || Notification.permission !== "granted") return;
     try {
@@ -206,6 +255,7 @@ const PWA = (() => {
     initInstallPrompt, notePostAuthMoment, canPromptInstall, promptInstall, dismissInstallBanner, recordVisit,
     startInstallReminders,
     notificationsSupported, requestNotificationPermission, notificationPermission, startReminderWatcher,
+    enablePushNotifications, disablePushNotifications,
     wakeLockSupported, acquireWakeLock, releaseWakeLock,
     initConnectivityToast
   };

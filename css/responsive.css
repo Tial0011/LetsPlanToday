@@ -7,7 +7,8 @@
 .bottom-nav button {
   flex: 1; background: none; border: none; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 2px; color: var(--text-secondary);
-  font-size: 0.7rem; cursor: pointer; transition: color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-spring);
+  font-size: 0.65rem; cursor: pointer; transition: color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-spring);
+  padding: 0 2px; min-width: 0;
 }
 .bottom-nav button .nav-icon { display: flex; align-items: center; justify-content: center; }
 .bottom-nav button .nav-icon svg { width: 20px; height: 20px; transition: transform var(--dur-base) var(--ease-spring); }

@@ -591,14 +591,18 @@
     `;
     el.querySelector("#set-name").addEventListener("change", e => setSettings({ name: e.target.value }));
     el.querySelector("#set-focus-duration").addEventListener("change", e => setSettings({ focusDuration: parseInt(e.target.value, 10) }));
-    el.querySelector("#set-reminder").addEventListener("change", e => setSettings({ reminderTime: e.target.value }));
+    el.querySelector("#set-reminder").addEventListener("change", e => setSettings({
+      reminderTime: e.target.value,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    }));
     el.querySelectorAll(".theme-swatch").forEach(btn => btn.addEventListener("click", () => setSettings({ theme: btn.dataset.theme })));
     el.querySelector("#set-signout").addEventListener("click", () => Auth.signOutUser());
 
     const notifBtn = el.querySelector("#set-notif-enable");
     if (notifBtn) notifBtn.addEventListener("click", async () => {
-      const result = await PWA.requestNotificationPermission();
-      if (result === "granted") { PWA.startReminderWatcher(getSettings, getTodayReminderContext); Utils.showToast("Reminders are on."); }
+      const result = await enableReminders(Auth.getCurrentUser()?.uid);
+      if (result === "granted") Utils.showToast("Reminders are on — they'll reach you even if the browser is closed.");
+      else if (result === "local-only") Utils.showToast("Reminders are on while this tab is open.");
       else if (result === "denied") Utils.showToast("Notifications are blocked in your browser settings.");
       renderSettings();
     });
@@ -614,7 +618,7 @@
     const support = PWA.notificationsSupported();
     const perm = PWA.notificationPermission();
     if (!support) return `<p style="margin-top:var(--space-2);">Reminders aren't supported in this browser yet — your time is still saved.</p>`;
-    if (perm === "granted") return `<p style="margin-top:var(--space-2);">Reminders are on while the app is open in a tab or window — a closed browser can't notify you (no server push yet).</p>`;
+    if (perm === "granted") return `<p style="margin-top:var(--space-2);">Reminders are on${FB.messaging ? " — they'll reach you even if the browser is closed" : " while the app is open in a tab or window"}.</p>`;
     if (perm === "denied") return `<p style="margin-top:var(--space-2);">Notifications are blocked for this site in your browser settings.</p>`;
     return `<button class="btn btn-ghost" id="set-notif-enable" style="margin-top:var(--space-2);">Turn on reminders</button>`;
   }
@@ -643,6 +647,21 @@
   function getTodayReminderContext() {
     const list = Tasks.forDate(todayKey).filter(t => t.isToday3);
     return { today3Total: list.length, today3Done: list.filter(t => t.completed).length };
+  }
+
+  // Turns notifications on: tries real push first (works even with the
+  // browser closed), falls back to the tab-open-only local watcher if push
+  // isn't configured/supported on this device.
+  async function enableReminders(uid) {
+    const result = await PWA.enablePushNotifications(uid);
+    if (result === "granted") return "granted";
+    if (result === "denied") return "denied";
+    // unsupported / unconfigured / error — still give them *something*.
+    if (PWA.notificationPermission() === "granted") {
+      PWA.startReminderWatcher(getSettings, getTodayReminderContext);
+      return "local-only";
+    }
+    return result;
   }
 
   function showAuth() {
@@ -723,10 +742,11 @@
   const notifBanner = document.getElementById("notif-banner");
   if (notifBanner) {
     notifBanner.querySelector("#notif-banner-yes").addEventListener("click", async () => {
-      const result = await PWA.requestNotificationPermission();
+      const result = await enableReminders(Auth.getCurrentUser()?.uid);
       if (result === "granted") {
-        PWA.startReminderWatcher(getSettings, getTodayReminderContext);
-        Utils.showToast("Notifications are on — pick a time in Settings.");
+        Utils.showToast("Notifications are on, even with the browser closed — pick a time in Settings.");
+      } else if (result === "local-only") {
+        Utils.showToast("Notifications are on while the app is open — pick a time in Settings.");
       } else if (result === "denied") {
         Utils.showToast("Notifications are blocked in your browser settings.");
       }
@@ -748,7 +768,7 @@
       showApp();
       goTo(pendingShortcutScreen || "today");
       pendingShortcutScreen = null;
-      PWA.startReminderWatcher(getSettings, getTodayReminderContext);
+      if (PWA.notificationPermission() === "granted") enableReminders(user.uid);
       setTimeout(maybeOfferNotifications, 4000); // staggered so it doesn't collide with the install banner
     } else {
       Tasks.teardown(); Journal.teardown(); Focus.teardown(); Reflection.teardown();
