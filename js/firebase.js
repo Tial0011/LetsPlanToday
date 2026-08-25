@@ -35,12 +35,21 @@ const FB = (() => {
   // Messaging isn't supported everywhere (e.g. Safari < 16.4, some private
   // browsing modes) — guard so the rest of the app can check FB.messaging
   // truthiness instead of catching exceptions everywhere.
+  //
+  // firebase.messaging.isSupported() is a Promise<boolean> in the modular
+  // SDK, but the compat build loaded here returns a plain boolean
+  // synchronously — calling .then() on that threw "is not a function" and
+  // silently left messaging as null forever (push notifications quietly
+  // never worked, even on fully-supported browsers). Handle both shapes.
   let messaging = null;
   try {
     if (firebase.messaging && firebase.messaging.isSupported) {
-      firebase.messaging.isSupported().then(supported => {
-        if (supported) messaging = firebase.messaging();
-      });
+      const supportResult = firebase.messaging.isSupported();
+      if (supportResult && typeof supportResult.then === "function") {
+        supportResult.then(supported => { if (supported) messaging = firebase.messaging(); });
+      } else if (supportResult) {
+        messaging = firebase.messaging();
+      }
     } else if (firebase.messaging) {
       messaging = firebase.messaging();
     }
