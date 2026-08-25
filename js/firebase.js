@@ -17,20 +17,17 @@ const FB = (() => {
   const db = firebase.firestore();
 
   // Best-effort offline cache — lets the app keep working (read + queue
-  // writes) on flaky connections, synced across tabs. Uses the current
-  // FirestoreSettings.cache API (settings() must run before any other
-  // Firestore call) — the older enablePersistence({synchronizeTabs}) is
-  // deprecated. Fails quietly in unsupported contexts (e.g. private
-  // browsing) rather than blocking the app.
-  try {
-    db.settings({
-      localCache: firebase.firestore.persistentLocalCache({
-        tabManager: firebase.firestore.persistentMultipleTabManager()
-      })
-    });
-  } catch (err) {
+  // writes) on flaky connections, synced across tabs. Firebase's newer
+  // FirestoreSettings.cache API (persistentLocalCache/persistentMultipleTabManager)
+  // is only exported from the modular `firebase/firestore` import, not from
+  // the compat build loaded here (firebase-firestore-compat.js) — calling it
+  // throws "is not a function". enablePersistence() logs a deprecation
+  // notice in the console but works correctly, so we keep it until this
+  // project migrates off the compat SDK. Fails quietly in unsupported
+  // contexts (e.g. private browsing) rather than blocking the app.
+  db.enablePersistence({ synchronizeTabs: true }).catch(err => {
     console.warn("Offline persistence not enabled:", err.code || err.message);
-  }
+  });
 
   function userDoc(uid) { return db.collection("users").doc(uid); }
   function col(uid, name) { return userDoc(uid).collection(name); }
